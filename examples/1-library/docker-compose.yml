@@ -1,0 +1,11 @@
+version: '2.1'
+
+services:
+  postgres:
+    image: postgres:13
+    environment:
+      - POSTGRES_PASSWORD=event_sourcery
+      - POSTGRES_USER=event_sourcery
+    command: -c fsync=off
+    ports:
+      - "5432:5432"
