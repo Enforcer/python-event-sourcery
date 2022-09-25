@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Final, Optional, Protocol
+from typing import Any, Optional, Protocol
 from uuid import UUID
 
 
@@ -8,13 +8,10 @@ class Metadata(Protocol):
     causation_id: Optional[UUID]
 
 
-AUTO_VERSION: Final = 0
-
-
 class Event(Protocol):
     uuid: UUID
     created_at: datetime
-    version: int = AUTO_VERSION
+    version: int | None
 
     def __init__(self, **kwargs: Any) -> None:
         ...  # pragma: no cover

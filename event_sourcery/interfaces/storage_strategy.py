@@ -1,8 +1,9 @@
 import abc
-from typing import Callable, Iterator
+from typing import Callable, Iterator, Tuple
 
 from event_sourcery.dto.raw_event_dict import RawEventDict
 from event_sourcery.types.stream_id import StreamId
+from event_sourcery.versioning import VersioningStrategy
 
 
 class StorageStrategy(abc.ABC):
@@ -30,8 +31,17 @@ class StorageStrategy(abc.ABC):
 
     @abc.abstractmethod
     def ensure_stream(
-        self, stream_id: StreamId | None, stream_name: str | None, expected_version: int
-    ) -> StreamId:
+        self,
+        stream_id: StreamId | None,
+        stream_name: str | None,
+        versioning: VersioningStrategy,
+    ) -> Tuple[StreamId, int]:
+        pass
+
+    @abc.abstractmethod
+    def version_stream(
+        self, stream_id: StreamId, versioning: VersioningStrategy
+    ) -> None:
         pass
 
     @abc.abstractmethod

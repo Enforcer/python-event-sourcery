@@ -17,7 +17,7 @@ class Stream:
 
     uuid = Column(GUID(), primary_key=True)
     name = Column(String(40), unique=True, nullable=True)
-    version = Column(BigInteger(), nullable=False)
+    version = Column(BigInteger(), nullable=True)
 
 
 class Event:
@@ -32,7 +32,7 @@ class Event:
     )
 
     id = Column(BigInteger().with_variant(Integer(), "sqlite"), primary_key=True)
-    version = Column(Integer(), nullable=False)
+    version = Column(Integer(), nullable=True)
     uuid = Column(GUID(), index=True, unique=True)
     stream_id = Column(GUID(), nullable=False, index=True)
     name = Column(String(50), nullable=False)

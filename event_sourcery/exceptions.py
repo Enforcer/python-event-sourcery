@@ -20,3 +20,15 @@ class AnotherStreamWithThisNameButOtherIdExists(EventStoreException):
 
 class EitherStreamIdOrStreamNameIsRequired(EventStoreException):
     pass
+
+
+class CannotUseExpectedVersionForStreamCreatedWithAnyVersioning(EventStoreException):
+    pass
+
+
+class CannotUseAutoVersioningForStreamCreatedWithAnyVersioning(EventStoreException):
+    pass
+
+
+class CannotUseAnyVersioningForStreamCreatedWithOtherVersioning(EventStoreException):
+    pass

@@ -31,7 +31,7 @@ def test_can_work_with_custom_events_with_custom_registry(
     class SomeDummyEvent(BaseModel):
         uuid: UUID = Field(default_factory=uuid4)
         created_at: datetime = Field(default_factory=datetime.utcnow)
-        version: int
+        version: int | None
         metadata: Metadata = Field(default_factory=Metadata)
 
     event_store = event_store_factory(event_base_class=None, event_registry=registry)

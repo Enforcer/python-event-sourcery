@@ -1,5 +1,5 @@
 from contextlib import contextmanager
-from typing import Any, Iterator, Type
+from typing import Any, Iterator, Type, cast
 
 from event_sourcery.interfaces.event import Event
 
@@ -11,12 +11,12 @@ class Aggregate:
 
     def __rehydrate__(self, event: Event) -> None:
         self._apply(event)
-        self.__version = event.version
+        self.__version = cast(int, event.version)
 
     @contextmanager
     def __persisting_changes__(self) -> Iterator[Iterator[Event]]:
         yield iter(self.__changes)
-        self.__version = self.__changes[-1].version
+        self.__version = cast(int, self.__changes[-1].version)
         self.__changes = []
 
     @property
@@ -28,7 +28,7 @@ class Aggregate:
 
     def _event(self, event_cls: Type[Event], **kwargs: Any) -> None:
         if self.__changes:
-            next_version = self.__changes[-1].version + 1
+            next_version = cast(int, self.__changes[-1].version) + 1
         else:
             next_version = self.__version + 1
 

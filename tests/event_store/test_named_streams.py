@@ -16,7 +16,7 @@ def test_can_append_then_load_with_named_stream(event_store: EventStore) -> None
 
     events = event_store.load_stream(stream_name="Test #1")
 
-    assert events == [an_event.copy(update={"version": 1})]
+    assert events == [an_event]
 
 
 @pytest.mark.skip("Hard to say how .iter api should change")
@@ -37,11 +37,7 @@ def test_can_append_then_load_with_named_stream_with_assigned_uuid(
     events_by_stream_id = event_store.load_stream(stream_id=stream_id)
     events_by_stream_name = event_store.load_stream(stream_name="Test #3")
 
-    assert (
-        events_by_stream_id
-        == events_by_stream_name
-        == [an_event.copy(update={"version": 1})]
-    )
+    assert events_by_stream_id == events_by_stream_name == [an_event]
 
 
 def test_lets_appending_by_both_id_and_name_then_just_name(
@@ -51,9 +47,7 @@ def test_lets_appending_by_both_id_and_name_then_just_name(
     stream_id = uuid4()
     event_store.append(stream_id=stream_id, stream_name="Test #4", events=[an_event])
     another_event = SomeEvent(first_name="Ciang")
-    event_store.append(
-        stream_name="Test #4", events=[another_event], expected_version=1
-    )
+    event_store.append(stream_name="Test #4", events=[another_event])
 
     events_by_stream_id = event_store.load_stream(stream_id=stream_id)
     events_by_stream_name = event_store.load_stream(stream_name="Test #4")
@@ -62,8 +56,8 @@ def test_lets_appending_by_both_id_and_name_then_just_name(
         events_by_stream_id
         == events_by_stream_name
         == [
-            an_event.copy(update={"version": 1}),
-            another_event.copy(update={"version": 2}),
+            an_event,
+            another_event,
         ]
     )
 

@@ -15,7 +15,7 @@ class PydanticSerde(Serde):
         return cast(Event, event_type(**event_as_dict, **data))
 
     def serialize(
-        self, event: Event, stream_id: StreamId, name: str, version: int
+        self, event: Event, stream_id: StreamId, name: str, version: int | None
     ) -> RawEventDict:
         model = cast(PydanticEvent, event)
         as_dict = json.loads(  # json dumps and loads? It's moronic

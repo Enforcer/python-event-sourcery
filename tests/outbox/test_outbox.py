@@ -34,7 +34,7 @@ def test_calls_publisher(
 
     outbox.run_once()
 
-    publisher.assert_called_once_with(an_event.copy(update={"version": 1}))
+    publisher.assert_called_once_with(an_event)
 
 
 def test_sends_only_once_in_case_of_success(
@@ -46,7 +46,7 @@ def test_sends_only_once_in_case_of_success(
     for _ in range(2):
         outbox.run_once()
 
-    publisher.assert_called_once_with(an_event.copy(update={"version": 1}))
+    publisher.assert_called_once_with(an_event)
 
 
 def test_tries_to_send_up_to_three_times(

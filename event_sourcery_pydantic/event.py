@@ -5,7 +5,6 @@ from uuid import UUID, uuid4
 from pydantic import BaseModel, Extra, Field
 
 from event_sourcery.event_registry import EventRegistry
-from event_sourcery.interfaces.event import AUTO_VERSION
 from event_sourcery.interfaces.event import Event as EventProto
 
 
@@ -17,7 +16,7 @@ class Metadata(BaseModel, extra=Extra.allow):
 class Event(BaseModel):
     uuid: UUID = Field(default_factory=uuid4)
     created_at: datetime = Field(default_factory=datetime.utcnow)
-    version: int = AUTO_VERSION
+    version: int | None
     metadata: Metadata = Field(default_factory=Metadata)
 
     __registry__: ClassVar = EventRegistry()

@@ -4,6 +4,7 @@ from typing import Generic, Iterator, Type, TypeVar
 from event_sourcery.aggregate import Aggregate
 from event_sourcery.event_store import EventStore
 from event_sourcery.types.stream_id import StreamId
+from event_sourcery.versioning import AUTO_VERSION
 
 TAggregate = TypeVar("TAggregate", bound=Aggregate)
 
@@ -31,7 +32,7 @@ class Repository(Generic[TAggregate]):
             self._event_store.publish(
                 stream_id=stream_id,
                 events=list(events),
-                expected_version=aggregate.__version__,
+                expected_version=aggregate.__version__ or AUTO_VERSION,
             )
 
     @contextmanager
@@ -39,14 +40,3 @@ class Repository(Generic[TAggregate]):
         aggregate = self.load(stream_id)
         yield aggregate
         self.save(aggregate, stream_id)
-
-    def load_up(self, aggregate: TAggregate, stream_id: StreamId) -> None:
-        # protocode, would have to implement that ability in EventStore first
-        events = [
-            event
-            for event in self._event_store.iter(stream_id)
-            if event.version > aggregate.__version__
-        ]
-        for event in events:
-            aggregate.__rehydrate__(event)
-        # TODO: that should fail if aggregate's state is not clean (has pending events)

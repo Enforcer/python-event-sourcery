@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Callable, Iterator, Union
+from typing import Callable, Iterator, Tuple, Union
 from uuid import uuid4
 
 from sqlalchemy import delete
@@ -12,10 +12,14 @@ from sqlalchemy.orm import Session
 from event_sourcery.dto.raw_event_dict import RawEventDict
 from event_sourcery.exceptions import (
     AnotherStreamWithThisNameButOtherIdExists,
+    CannotUseAnyVersioningForStreamCreatedWithOtherVersioning,
+    CannotUseAutoVersioningForStreamCreatedWithAnyVersioning,
+    CannotUseExpectedVersionForStreamCreatedWithAnyVersioning,
     ConcurrentStreamWriteError,
 )
 from event_sourcery.interfaces.storage_strategy import StorageStrategy
 from event_sourcery.types.stream_id import StreamId
+from event_sourcery.versioning import VersioningStrategy
 from event_sourcery_sqlalchemy.models import Event as EventModel
 from event_sourcery_sqlalchemy.models import Snapshot as SnapshotModel
 from event_sourcery_sqlalchemy.models import Stream as StreamModel
@@ -114,8 +118,11 @@ class SqlAlchemyStorageStrategy(StorageStrategy):
         return raw_dict_events
 
     def ensure_stream(
-        self, stream_id: StreamId | None, stream_name: str | None, expected_version: int
-    ) -> StreamId:
+        self,
+        stream_id: StreamId | None,
+        stream_name: str | None,
+        versioning: VersioningStrategy,
+    ) -> Tuple[StreamId, int]:
         given_stream_id = stream_id
         if stream_id is None:
             stream_id = uuid4()
@@ -125,37 +132,56 @@ class SqlAlchemyStorageStrategy(StorageStrategy):
             .values(
                 uuid=stream_id,
                 name=stream_name,
-                version=1,
+                version=versioning.version_for_new_stream,
             )
             .on_conflict_do_nothing()
         )
         self._session.execute(ensure_stream_stmt)
+
+        stream: StreamModel
         if stream_name is not None:
-            get_stream_id_stmt = select(StreamModel.uuid).filter(
+            get_stream_stmt = select(StreamModel).filter(
                 StreamModel.name == stream_name
             )
-            stream_id = self._session.execute(get_stream_id_stmt).scalar()
-            if given_stream_id is not None and stream_id != given_stream_id:
-                raise AnotherStreamWithThisNameButOtherIdExists()
+            stream = self._session.execute(get_stream_stmt).scalars().first()
 
-        if expected_version:
+            if given_stream_id is not None and stream.uuid != given_stream_id:
+                raise AnotherStreamWithThisNameButOtherIdExists()
+            stream_id = stream.uuid
+        else:
+            get_stream_stmt = select(StreamModel).filter(
+                StreamModel.uuid == str(stream_id)
+            )
+            stream = self._session.execute(get_stream_stmt).scalars().first()
+
+        if stream.version is None and versioning.expected_version is not None:
+            raise CannotUseExpectedVersionForStreamCreatedWithAnyVersioning()
+        elif stream.version is not None and versioning.version_for_new_stream is None:
+            raise CannotUseAnyVersioningForStreamCreatedWithOtherVersioning()
+        elif stream.version is None and versioning.version_for_new_stream is not None:
+            raise CannotUseAutoVersioningForStreamCreatedWithAnyVersioning()
+
+        assert stream_id is not None
+        return stream_id, stream.version
+
+    def version_stream(
+        self, stream_id: StreamId, versioning: VersioningStrategy
+    ) -> None:
+        if versioning.expected_version is not None:
             stmt = (
                 update(StreamModel)
                 .where(
                     StreamModel.uuid == stream_id,
-                    StreamModel.version == expected_version,
+                    StreamModel.version == versioning.expected_version,
                 )
                 .values(
-                    version=StreamModel.version + 1
-                )  # TODO: may not be true! for inserting multiple events at once
+                    version=StreamModel.version + versioning.stream_version_increase
+                )
             )
             result = self._session.execute(stmt)
 
             if result.rowcount != 1:  # optimistic lock failed
                 raise ConcurrentStreamWriteError
-
-        assert stream_id is not None
-        return stream_id
 
     def insert_events(self, events: list[RawEventDict]) -> None:
         rows = []

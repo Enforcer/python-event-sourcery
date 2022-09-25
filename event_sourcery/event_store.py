@@ -15,6 +15,7 @@ from event_sourcery.interfaces.serde import Serde
 from event_sourcery.interfaces.storage_strategy import StorageStrategy
 from event_sourcery.interfaces.subscriber import Subscriber
 from event_sourcery.types.stream_id import StreamId
+from event_sourcery.versioning import ANY_VERSION, Versioning, build_versioning_strategy
 
 TAggregate = TypeVar("TAggregate")
 
@@ -66,7 +67,7 @@ class EventStore(abc.ABC):
         events: Sequence[Event],
         stream_id: StreamId | None = None,
         stream_name: str | None = None,
-        expected_version: int = 0,
+        expected_version: int | Versioning = ANY_VERSION,
     ) -> None:
         self._append(
             stream_id=stream_id,
@@ -80,7 +81,7 @@ class EventStore(abc.ABC):
         events: Sequence[Event],
         stream_id: StreamId | None = None,
         stream_name: str | None = None,
-        expected_version: int = 0,
+        expected_version: int | Versioning = ANY_VERSION,
     ) -> None:
         serialized_events = self._append(
             stream_id=stream_id,
@@ -108,7 +109,7 @@ class EventStore(abc.ABC):
         stream_id: StreamId | None,
         stream_name: str | None,
         events: Sequence[Event],
-        expected_version: int,
+        expected_version: int | Versioning,
     ) -> list[RawEventDict]:
         if not events:
             raise NoEventsToAppend
@@ -116,13 +117,17 @@ class EventStore(abc.ABC):
         if stream_id is None and stream_name is None:
             raise EitherStreamIdOrStreamNameIsRequired()
 
-        stream_id = self._storage_strategy.ensure_stream(
+        versioning_strategy = build_versioning_strategy(expected_version, len(events))
+
+        stream_id, stream_version = self._storage_strategy.ensure_stream(
             stream_id=stream_id,
             stream_name=stream_name,
-            expected_version=expected_version,
+            versioning=versioning_strategy,
         )
-        serialized_events = self._serialize_events(events, stream_id, expected_version)
+        versions = versioning_strategy.versions(stream_version)
+        serialized_events = self._serialize_events(events, stream_id, versions)
         self._storage_strategy.insert_events(serialized_events)
+        self._storage_strategy.version_stream(stream_id, versioning_strategy)
         return serialized_events
 
     def iter(
@@ -156,7 +161,10 @@ class EventStore(abc.ABC):
         ]
 
     def _serialize_events(
-        self, events: Sequence[Event], stream_id: StreamId, expected_stream_version: int
+        self,
+        events: Sequence[Event],
+        stream_id: StreamId,
+        versions: Iterator[int | None],
     ) -> list[RawEventDict]:
         return [
             self._serde.serialize(
@@ -165,5 +173,5 @@ class EventStore(abc.ABC):
                 name=self._event_registry.name_for_type(type(event)),
                 version=version,
             )
-            for version, event in enumerate(events, start=expected_stream_version + 1)
+            for version, event in zip(versions, events)
         ]
