@@ -101,7 +101,6 @@ def engine(request: SubRequest, declarative_base: DeclarativeBase) -> Iterator[E
     try:
         declarative_base.metadata.create_all(bind=engine)
     except OperationalError:
-        raise
         pytest.skip(f"{engine.url.drivername} test database not available, skipping")
     else:
         yield engine

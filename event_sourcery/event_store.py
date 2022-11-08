@@ -4,7 +4,11 @@ from typing import Iterator, Sequence, Type, TypeVar
 from event_sourcery.after_commit_subscriber import AfterCommit
 from event_sourcery.dto.raw_event_dict import RawEventDict
 from event_sourcery.event_registry import BaseEventCls, EventRegistry
-from event_sourcery.exceptions import Misconfiguration, NoEventsToAppend
+from event_sourcery.exceptions import (
+    EitherStreamIdOrStreamNameIsRequired,
+    Misconfiguration,
+    NoEventsToAppend,
+)
 from event_sourcery.interfaces.event import Event
 from event_sourcery.interfaces.outbox_storage_strategy import OutboxStorageStrategy
 from event_sourcery.interfaces.serde import Serde
@@ -46,23 +50,43 @@ class EventStore(abc.ABC):
         self._subscriptions = subscriptions
 
     def load_stream(
-        self, stream_id: StreamId, start: int | None = None, stop: int | None = None
+        self,
+        stream_id: StreamId | None = None,
+        stream_name: str | None = None,
+        start: int | None = None,
+        stop: int | None = None,
     ) -> list[Event]:
-        events = self._storage_strategy.fetch_events(stream_id, start=start, stop=stop)
+        events = self._storage_strategy.fetch_events(
+            stream_id, stream_name, start=start, stop=stop
+        )
         return self._deserialize_events(events)
 
     def append(
-        self, stream_id: StreamId, events: Sequence[Event], expected_version: int = 0
+        self,
+        events: Sequence[Event],
+        stream_id: StreamId | None = None,
+        stream_name: str | None = None,
+        expected_version: int = 0,
     ) -> None:
         self._append(
-            stream_id=stream_id, events=events, expected_version=expected_version
+            stream_id=stream_id,
+            stream_name=stream_name,
+            events=events,
+            expected_version=expected_version,
         )
 
     def publish(
-        self, stream_id: StreamId, events: Sequence[Event], expected_version: int = 0
+        self,
+        events: Sequence[Event],
+        stream_id: StreamId | None = None,
+        stream_name: str | None = None,
+        expected_version: int = 0,
     ) -> None:
         serialized_events = self._append(
-            stream_id=stream_id, events=events, expected_version=expected_version
+            stream_id=stream_id,
+            stream_name=stream_name,
+            events=events,
+            expected_version=expected_version,
         )
 
         # TODO: make it more robust per subscriber?
@@ -80,19 +104,30 @@ class EventStore(abc.ABC):
         self._outbox_storage_strategy.put_into_outbox(serialized_events)
 
     def _append(
-        self, stream_id: StreamId, events: Sequence[Event], expected_version: int
+        self,
+        stream_id: StreamId | None,
+        stream_name: str | None,
+        events: Sequence[Event],
+        expected_version: int,
     ) -> list[RawEventDict]:
         if not events:
             raise NoEventsToAppend
 
-        self._storage_strategy.ensure_stream(
-            stream_id=stream_id, expected_version=expected_version
+        if stream_id is None and stream_name is None:
+            raise EitherStreamIdOrStreamNameIsRequired()
+
+        stream_id = self._storage_strategy.ensure_stream(
+            stream_id=stream_id,
+            stream_name=stream_name,
+            expected_version=expected_version,
         )
         serialized_events = self._serialize_events(events, stream_id, expected_version)
         self._storage_strategy.insert_events(serialized_events)
         return serialized_events
 
-    def iter(self, *streams_ids: StreamId) -> Iterator[Event]:
+    def iter(
+        self, *streams_ids: StreamId
+    ) -> Iterator[Event]:  # TODO - iter by stream name
         events_iterator = self._storage_strategy.iter(*streams_ids)
         for event in events_iterator:
             yield self._serde.deserialize(

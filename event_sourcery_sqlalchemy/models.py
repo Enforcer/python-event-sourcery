@@ -16,6 +16,7 @@ class Stream:
     __tablename__ = "event_sourcery_streams"
 
     uuid = Column(GUID(), primary_key=True)
+    name = Column(String(255), unique=True, nullable=True)
     version = Column(BigInteger(), nullable=False)
 
 

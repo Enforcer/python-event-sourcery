@@ -12,3 +12,11 @@ class ConcurrentStreamWriteError(EventStoreException):
 
 class Misconfiguration(EventStoreException):
     pass
+
+
+class AnotherStreamWithThisNameButOtherIdExists(EventStoreException):
+    pass
+
+
+class EitherStreamIdOrStreamNameIsRequired(EventStoreException):
+    pass
