@@ -65,7 +65,7 @@ jobs:
     - name: Install deps
       run: |
         python -m pip install --upgrade pip poetry==${{ env.POETRY_VERSION }}
-        poetry install
+        poetry install -E django
     - name: Run linters
       run: |
         poetry run make lint

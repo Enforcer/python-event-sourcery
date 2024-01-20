@@ -18,6 +18,8 @@ SQLAlchemy = ">=2.0"
 esdbclient = ">=1.0b3"
 kombu = {version = "*", optional = true}
 cloudevents = {version = "*", optional = true}
+django = {version = ">=4,<6", optional = true}
+more-itertools = "*"
 
 [tool.poetry.dev-dependencies]
 black = "*"
@@ -33,6 +35,10 @@ psycopg2-binary = "^2.9.3"
 [tool.poetry.extras]
 kombu = ["kombu"]
 cloudevents = ["cloudevents"]
+django = ["django"]
+
+[tool.poetry.group.dev.dependencies]
+pytest-django = {version = "*"}
 
 [tool.pytest]
 addopts = ""
@@ -43,6 +49,7 @@ markers = [
     "skip_esdb: skip features not supported by esdb or our implementation on top of it",
     "skip_in_memory: skip features not supported by in-memory event store",
 ]
+DJANGO_SETTINGS_MODULE = "tests.django_tests.django_tests.settings"
 
 [tool.coverage.run]
 branch = true
