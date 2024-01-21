@@ -15,6 +15,16 @@ services:
       - '5672:5672'
       - '15672:15672'
 
+  mysql:
+    image: mysql:8
+    environment:
+      MYSQL_ROOT_PASSWORD: esroot
+      MYSQL_DATABASE: es
+      MYSQL_USER: es
+      MYSQL_PASSWORD: es
+    ports:
+      - '3306:3306'
+
   eventstoredb:
     image: eventstore/eventstore:latest
     environment:

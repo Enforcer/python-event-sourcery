@@ -3,6 +3,7 @@ from typing import Iterator, Sequence, Union, cast
 
 from more_itertools import first_true
 from sqlalchemy import delete, select, update
+from sqlalchemy.dialects.mysql import insert as mysql_insert
 from sqlalchemy.dialects.postgresql import insert as postgresql_insert
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm import Session
@@ -103,17 +104,24 @@ class SqlAlchemyStorageStrategy(StorageStrategy):
         matching_streams_stmt = select(StreamModel).where(condition)
         matching_streams = self._session.execute(matching_streams_stmt).scalars().all()
         if not matching_streams:
-            ensure_stream_stmt = (
-                postgresql_insert(StreamModel)
-                .values(
-                    uuid=stream_id,
-                    name=stream_id.name,
-                    category=stream_id.category or "",
-                    version=initial_version,
+            values = {
+                "uuid": stream_id,
+                "name": stream_id.name,
+                "category": stream_id.category or "",
+                "version": initial_version,
+            }
+            if self._session.bind.dialect.name != "mysql":
+                ensure_stream_stmt = (
+                    postgresql_insert(StreamModel)
+                    .values(**values)
+                    .on_conflict_do_nothing()
                 )
-                .on_conflict_do_nothing()
-            )
+            else:
+                ensure_stream_stmt = (
+                    mysql_insert(StreamModel).values(**values).prefix_with("IGNORE")
+                )
             self._session.execute(ensure_stream_stmt)
+
             matching_streams = (
                 self._session.execute(matching_streams_stmt).scalars().all()
             )

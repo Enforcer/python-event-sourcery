@@ -11,7 +11,7 @@ from tests.factories import an_event
 from tests.matchers import any_record
 
 
-@pytest.mark.not_implemented(storage=["sqlite", "postgres"])
+@pytest.mark.not_implemented(storage=["sqlite", "postgres", "mysql"])
 def test_receives_all_events(given: Given, when: When, then: Then) -> None:
     subscription = given.subscription()
 
@@ -24,7 +24,7 @@ def test_receives_all_events(given: Given, when: When, then: Then) -> None:
     then(subscription).next_received_record_is(any_record(third_event, first_stream))
 
 
-@pytest.mark.not_implemented(storage=["sqlite", "postgres"])
+@pytest.mark.not_implemented(storage=["sqlite", "postgres", "mysql"])
 def test_multiple_subscriptions_receives_events(
     given: Given,
     when: When,
@@ -41,7 +41,7 @@ def test_multiple_subscriptions_receives_events(
 
 
 class TestFromPositionSubscription:
-    @pytest.mark.not_implemented(storage=["sqlite", "postgres"])
+    @pytest.mark.not_implemented(storage=["sqlite", "postgres", "mysql"])
     def test_receives_all_events_from_selected_position(
         self,
         event_store: EventStore,
@@ -58,7 +58,7 @@ class TestFromPositionSubscription:
         then(subscription).next_received_record_is(any_record(old_event, stream.id))
         then(subscription).next_received_record_is(any_record(new_event, stream.id))
 
-    @pytest.mark.not_implemented(storage=["sqlite", "postgres"])
+    @pytest.mark.not_implemented(storage=["sqlite", "postgres", "mysql"])
     def test_receives_events_after_passed_position(
         self,
         event_store: EventStore,
@@ -73,7 +73,7 @@ class TestFromPositionSubscription:
 
         then(subscription).next_received_record_is(any_record(new_event, stream.id))
 
-    @pytest.mark.not_implemented(storage=["sqlite", "postgres"])
+    @pytest.mark.not_implemented(storage=["sqlite", "postgres", "mysql"])
     def test_receives_events_from_multiple_streams_after_passed_position(
         self,
         event_store: EventStore,
@@ -101,7 +101,7 @@ class TestFromPositionSubscription:
 
 
 class TestSubscriptionToCategory:
-    @pytest.mark.not_implemented(storage=["sqlite", "postgres"])
+    @pytest.mark.not_implemented(storage=["sqlite", "postgres", "mysql"])
     def test_receives_only_events_from_selected_category(
         self,
         given: Given,
@@ -123,7 +123,7 @@ class TestSubscriptionToCategory:
             any_record(second_event, stream_in_category.id)
         )
 
-    @pytest.mark.not_implemented(storage=["sqlite", "postgres"])
+    @pytest.mark.not_implemented(storage=["sqlite", "postgres", "mysql"])
     def test_receives_all_events_from_selected_category(
         self,
         given: Given,
@@ -146,7 +146,7 @@ class TestSubscriptionToCategory:
         )
         then(subscription).next_received_record_is(any_record(third_event, stream_1.id))
 
-    @pytest.mark.not_implemented(storage=["sqlite", "postgres"])
+    @pytest.mark.not_implemented(storage=["sqlite", "postgres", "mysql"])
     def test_receives_events_after_passed_position(
         self,
         event_store: EventStore,
@@ -177,7 +177,7 @@ class TestSubscribeToEventTypes:
     class ThirdType(Event):
         pass
 
-    @pytest.mark.not_implemented(storage=["sqlite", "postgres"])
+    @pytest.mark.not_implemented(storage=["sqlite", "postgres", "mysql"])
     def test_receives_only_events_with_subscribed_types(
         self,
         given: Given,
@@ -195,7 +195,7 @@ class TestSubscribeToEventTypes:
         then(subscription).next_received_record_is(any_record(first_event, stream_id))
         then(subscription).next_received_record_is(any_record(third_event, stream_id))
 
-    @pytest.mark.not_implemented(storage=["sqlite", "postgres"])
+    @pytest.mark.not_implemented(storage=["sqlite", "postgres", "mysql"])
     def test_receives_subscribed_types_from_multiple_streams(
         self,
         given: Given,
@@ -216,7 +216,7 @@ class TestSubscribeToEventTypes:
         then(subscription).next_received_record_is(any_record(first_event, stream_1.id))
         then(subscription).next_received_record_is(any_record(last_event, stream_2.id))
 
-    @pytest.mark.not_implemented(storage=["sqlite", "postgres"])
+    @pytest.mark.not_implemented(storage=["sqlite", "postgres", "mysql"])
     def test_receives_events_after_passed_position(
         self,
         event_store: EventStore,
@@ -308,6 +308,6 @@ class TestInTransactionSubscription:
         yield Subscription(in_transaction)
         in_transaction.close()
 
-    @pytest.fixture(params=["sqlite_factory", "postgres_factory"])
+    @pytest.fixture(params=["sqlite_factory", "postgres_factory", "mysql_factory"])
     def event_store_factory(self, request: SubRequest) -> SQLStoreFactory:
         return cast(SQLStoreFactory, request.getfixturevalue(request.param))

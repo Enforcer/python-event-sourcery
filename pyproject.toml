@@ -35,6 +35,9 @@ psycopg2-binary = "^2.9.3"
 kombu = ["kombu"]
 cloudevents = ["cloudevents"]
 
+[tool.poetry.group.dev.dependencies]
+pymysql = "*"
+
 [tool.pytest]
 addopts = ""
 

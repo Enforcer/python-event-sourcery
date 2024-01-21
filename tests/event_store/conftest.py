@@ -71,6 +71,23 @@ def postgres_factory(
 
 
 @pytest.fixture()
+def mysql_session(
+    request: pytest.FixtureRequest, declarative_base: DeclarativeBase
+) -> Iterator[Session]:
+    xfail_if_not_implemented_yet(request, "mysql")
+    url = "mysql+pymysql://es:es@localhost:3306/es"
+    with sql_session(url, declarative_base) as session:
+        yield session
+
+
+@pytest.fixture()
+def mysql_factory(
+    mysql_session: Session,
+) -> SQLStoreFactory:
+    return SQLStoreFactory(mysql_session)
+
+
+@pytest.fixture()
 def esdb() -> Iterator[EventStoreDBClient]:
     client = EventStoreDBClient(uri="esdb://localhost:2113?Tls=false")
     commit_position = client.get_commit_position()
@@ -116,6 +133,7 @@ def in_memory_factory(request: pytest.FixtureRequest) -> EventStoreFactory:
         "esdb_factory",
         "sqlite_factory",
         "postgres_factory",
+        "mysql_factory",
     ]
 )
 def event_store_factory(request: SubRequest) -> EventStoreFactory:
