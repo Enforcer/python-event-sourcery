@@ -27,7 +27,9 @@ class Storage:
 
     @property
     def current_position(self) -> int:
-        return len(self.events)
+        if not self.events:
+            return 0
+        return len(self.events) - 1
 
     def __contains__(self, stream_id: object) -> bool:
         return stream_id in self._data
