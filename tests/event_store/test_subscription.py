@@ -1,10 +1,14 @@
+from datetime import datetime
 from typing import Iterator, cast
 from unittest.mock import ANY
+from uuid import uuid4
 
 import pytest
 from _pytest.fixtures import SubRequest
+from esdbclient import EventStoreDBClient
 
-from event_sourcery.event_store import Entry, Event, EventStore, StreamId
+from event_sourcery.event_store import Entry, Event, EventStore, RawEvent, StreamId
+from event_sourcery_esdb import ESDBStorageStrategy, ESDBStoreFactory
 from event_sourcery_sqlalchemy import SQLStoreFactory
 from tests.bdd import Given, Subscription, Then, When
 from tests.factories import an_event
@@ -236,6 +240,51 @@ class TestSubscribeToEventTypes:
 
         then(subscription).next_received_record_is(any_record(first, stream_1.id))
         then(subscription).next_received_record_is(any_record(second, stream_2.id))
+
+
+class TestBatchSubscription:
+    @pytest.fixture()
+    def storage(self, esdb: EventStoreDBClient) -> ESDBStorageStrategy:
+        return ESDBStorageStrategy(esdb)
+
+    def an_event(self) -> RawEvent:
+        return RawEvent(
+            uuid=uuid4(),
+            stream_id=StreamId(),
+            created_at=datetime.now(),
+            version=1,
+            name="anEvent",
+            data={},
+            context={},
+        )
+
+    def test_time_limit_reached(
+        self,
+        storage: ESDBStorageStrategy,
+        given: Given,
+        when: When,
+        then: Then,
+    ) -> None:
+        position = storage.current_position
+        storage.insert_events([self.an_event(), self.an_event(), self.an_event()])
+        events = storage.batch_subscribe(
+            start_from=position, batch_size=10, within=1,
+        )
+        assert len(events) == 3
+
+    def test_max_events_received(
+        self,
+        storage: ESDBStorageStrategy,
+        given: Given,
+        when: When,
+        then: Then,
+    ) -> None:
+        position = storage.current_position
+        storage.insert_events([self.an_event(), self.an_event(), self.an_event()])
+        events = storage.batch_subscribe(
+            start_from=position, batch_size=2, within=1,
+        )
+        assert len(events) == 2
 
 
 class TestInTransactionSubscription:

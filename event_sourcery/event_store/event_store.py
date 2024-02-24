@@ -187,3 +187,33 @@ class EventStore:
     @property
     def position(self) -> Position | None:
         return self._storage_strategy.current_position
+
+    def batch_subscribe(
+        self,
+        from_position: Position,
+        max_events: int,
+        within: float,
+    ) -> Iterator[list[Recorded]]:
+        pass
+
+
+class Subscriber:
+    def __init__(
+        self,
+        storage_strategy: StorageStrategy,
+        serde: Serde,
+    ) -> None:
+        self._storage_strategy = storage_strategy
+        self._serde = serde
+
+    def from_position(self):
+        pass
+
+    def to_category(self) -> BuilderCategory:
+        pass
+
+
+event_store = EventStore()
+subscription = event_store.subscribe().from_position(100).to_category().take(10, within=30)
+
+take(subscription, 10, within=30)

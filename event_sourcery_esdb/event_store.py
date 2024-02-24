@@ -1,3 +1,4 @@
+import signal
 from dataclasses import dataclass
 from typing import Iterator, cast
 
@@ -150,3 +151,31 @@ class ESDBStorageStrategy(StorageStrategy):
     @property
     def current_position(self) -> Position | None:
         return Position(self._client.get_commit_position())
+
+    def batch_subscribe(
+        self,
+        start_from: Position,
+        batch_size: int,
+        within: int,
+    ) -> list[RecordedRaw]:
+        batch = []
+        subscription = self._client.subscribe_to_all(
+            commit_position=start_from,
+            timeout=10,
+        )
+
+        def _timeout(*args, **kwargs):
+            raise TimeoutError()
+
+        signal.signal(signal.SIGALRM, _timeout)
+        signal.alarm(within)
+
+        try:
+            for entry in subscription:
+                batch.append(entry)
+                if len(batch) == batch_size:
+                    break
+        except TimeoutError:
+            pass
+        signal.alarm(0)
+        return [dto.raw_record(e) for e in batch]
