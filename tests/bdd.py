@@ -10,6 +10,7 @@ from typing_extensions import Self
 
 from event_sourcery import event_store as es
 from event_sourcery.event_store import Event, Position, Recorded
+from event_sourcery.event_store.factory import Engine
 from event_sourcery.event_store.subscription import Builder
 from tests.matchers import any_metadata
 
@@ -99,7 +100,11 @@ T = TypeVar("T")
 
 @dataclass
 class Step:
-    store: es.EventStore
+    engine: Engine
+
+    @property
+    def store(self) -> es.EventStore:
+        return self.engine.event_store
 
     def __call__(self, value: T) -> T:
         return value

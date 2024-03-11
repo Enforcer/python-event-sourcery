@@ -6,7 +6,7 @@ import pytest
 from _pytest.fixtures import SubRequest
 
 from event_sourcery.event_store import Entry, Event, EventStore, StreamId
-from event_sourcery_sqlalchemy import SQLStoreFactory
+from event_sourcery_sqlalchemy import SQLEngine, SQLStoreFactory
 from tests.bdd import Given, Subscription, Then, When
 from tests.factories import an_event
 from tests.matchers import any_record
@@ -382,8 +382,8 @@ class TestSubscribeToEventTypes:
 
 class TestInTransactionSubscription:
     @pytest.fixture(autouse=True)
-    def setup(self, event_store_factory: SQLStoreFactory) -> None:
-        self.factory = event_store_factory
+    def setup(self, engine: SQLEngine) -> None:
+        self.engine = engine
 
     def test_receive_all_events(
         self,
@@ -446,7 +446,7 @@ class TestInTransactionSubscription:
 
     @pytest.fixture()
     def subscription(self) -> Iterator[Subscription]:
-        in_transaction = self.factory.subscribe_in_transaction()
+        in_transaction = self.engine.subscribe_in_transaction()
         yield Subscription(in_transaction)
         in_transaction.close()
 

@@ -8,16 +8,24 @@ from typing import ContextManager, Dict, Generator, Iterator
 
 from typing_extensions import Self
 
-from event_sourcery.event_store.event import Position, RawEvent, RecordedRaw
+from event_sourcery.event_store import Event, EventRegistry, EventStore
+from event_sourcery.event_store.event import Position, RawEvent, RecordedRaw, Serde
 from event_sourcery.event_store.exceptions import ConcurrentStreamWriteError
-from event_sourcery.event_store.factory import EventStoreFactory, no_filter
+from event_sourcery.event_store.factory import (
+    Engine,
+    EventStoreFactory,
+    NoOutboxStorageStrategy,
+    no_filter,
+)
 from event_sourcery.event_store.interfaces import (
     OutboxFiltererStrategy,
     OutboxStorageStrategy,
     StorageStrategy,
     SubscriptionStrategy,
 )
+from event_sourcery.event_store.outbox import Outbox
 from event_sourcery.event_store.stream_id import StreamId
+from event_sourcery.event_store.subscription import Subscriber
 from event_sourcery.event_store.versioning import NO_VERSIONING, Versioning
 
 
@@ -207,7 +215,7 @@ class InMemoryStorageStrategy(StorageStrategy):
     def __init__(
         self,
         storage: Storage,
-        outbox_strategy: InMemoryOutboxStorageStrategy | None = None,
+        outbox_strategy: InMemoryOutboxStorageStrategy | None,
     ) -> None:
         self._names: Dict[str | None, str] = {}
         self._storage = storage
@@ -266,16 +274,44 @@ class InMemoryStorageStrategy(StorageStrategy):
         return current_position and Position(current_position)
 
 
+@dataclass(repr=False)
 class InMemoryEventStoreFactory(EventStoreFactory):
-    def __init__(self) -> None:
-        self._storage = Storage()
-        self._configure(
-            storage_strategy=InMemoryStorageStrategy(self._storage),
-            subscription_strategy=InMemorySubscriptionStrategy(self._storage),
+    serde = Serde(Event.__registry__)
+
+    _storage: Storage = field(default_factory=Storage)
+    _outbox_strategy: InMemoryOutboxStorageStrategy | None = None
+    _subscription_strategy: InMemorySubscriptionStrategy = field(init=False)
+
+    def __post_init__(self) -> None:
+        self._subscription_strategy = InMemorySubscriptionStrategy(self._storage)
+
+    def build(self) -> Engine:
+        engine = Engine()
+        engine.event_store = EventStore(
+            InMemoryStorageStrategy(self._storage, self._outbox_strategy),
+            self._outbox_strategy or NoOutboxStorageStrategy(),
+            self._subscription_strategy,
+            self.serde,
         )
+        engine.outbox = Outbox(
+            self._outbox_strategy or NoOutboxStorageStrategy(),
+            self.serde,
+        )
+        engine.subscriber = Subscriber(
+            engine.event_store.position or 0,
+            self._subscription_strategy,
+            self.serde,
+        )
+        return engine
+
+    def with_event_registry(self, event_registry: EventRegistry) -> Self:
+        self.serde = Serde(event_registry)
+        return self
 
     def with_outbox(self, filterer: OutboxFiltererStrategy = no_filter) -> Self:
-        outbox = InMemoryOutboxStorageStrategy(filterer)
-        self._configure(storage_strategy=InMemoryStorageStrategy(self._storage, outbox))
-        self._configure(outbox_storage_strategy=outbox)
+        self._outbox_strategy = InMemoryOutboxStorageStrategy(filterer)
+        return self
+
+    def without_outbox(self, filterer: OutboxFiltererStrategy = no_filter) -> Self:
+        self._outbox_strategy = None
         return self

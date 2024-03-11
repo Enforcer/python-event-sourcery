@@ -21,7 +21,7 @@ def esdb_factory(
 
 @pytest.fixture()
 def event_store(event_store_factory: EventStoreFactory) -> EventStore:
-    return event_store_factory.with_outbox().build()
+    return event_store_factory.with_outbox().build().event_store
 
 
 class PublisherMock(Mock):
