@@ -9,7 +9,7 @@ from event_sourcery.event_store.interfaces import (
 )
 from event_sourcery.event_store.outbox import Outbox
 from event_sourcery.event_store.stream_id import StreamId
-from event_sourcery.event_store.subscription import Subscriber
+from event_sourcery.event_store.subscription import Subscriber, SubscriberEngine
 from event_sourcery.event_store.versioning import (
     NO_VERSIONING,
     ExplicitVersioning,
@@ -145,7 +145,7 @@ class EventStore:
         return [self._serde.serialize(event=e, stream_id=stream_id) for e in events]
 
     def subscriber(self, from_position: Position) -> Subscriber:
-        return Subscriber(from_position, self._subscription_strategy, self._serde)
+        return SubscriberEngine(self._subscription_strategy, self._serde, from_position)
 
     @property
     def position(self) -> Position | None:

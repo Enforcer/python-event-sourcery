@@ -3,8 +3,9 @@ from contextlib import contextmanager
 from copy import copy
 from dataclasses import dataclass, field
 from datetime import timedelta
+from functools import partial
 from operator import getitem
-from typing import ContextManager, Dict, Generator, Iterator
+from typing import ContextManager, Dict, Generator, Iterator, Type, cast
 
 from typing_extensions import Self
 
@@ -25,7 +26,7 @@ from event_sourcery.event_store.interfaces import (
 )
 from event_sourcery.event_store.outbox import Outbox
 from event_sourcery.event_store.stream_id import StreamId
-from event_sourcery.event_store.subscription import Subscriber
+from event_sourcery.event_store.subscription import Subscriber, SubscriberEngine
 from event_sourcery.event_store.versioning import NO_VERSIONING, Versioning
 
 
@@ -297,10 +298,13 @@ class InMemoryEventStoreFactory(EventStoreFactory):
             self._outbox_strategy or NoOutboxStorageStrategy(),
             self.serde,
         )
-        engine.subscriber = Subscriber(
-            engine.event_store.position or 0,
-            self._subscription_strategy,
-            self.serde,
+        engine.subscriber = cast(
+            Type[Subscriber],
+            partial(
+                SubscriberEngine,
+                strategy=self._subscription_strategy,
+                serde=self.serde,
+            ),
         )
         return engine
 

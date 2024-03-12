@@ -7,6 +7,8 @@ __all__ = [
 ]
 
 from dataclasses import dataclass
+from functools import partial
+from typing import Type, cast
 
 from sqlalchemy.orm import Session
 from typing_extensions import Self
@@ -25,7 +27,7 @@ from event_sourcery.event_store.factory import (
 )
 from event_sourcery.event_store.interfaces import OutboxFiltererStrategy
 from event_sourcery.event_store.outbox import Outbox
-from event_sourcery.event_store.subscription import Subscriber
+from event_sourcery.event_store.subscription import Subscriber, SubscriberEngine
 from event_sourcery_sqlalchemy import models
 from event_sourcery_sqlalchemy.event_store import SqlAlchemyStorageStrategy
 from event_sourcery_sqlalchemy.models import configure_models
@@ -59,10 +61,13 @@ class SQLStoreFactory(EventStoreFactory):
             self._outbox_strategy or NoOutboxStorageStrategy(),
             self._serde,
         )
-        engine.subscriber = Subscriber(
-            0,
-            SqlAlchemySubscriptionStrategy(),
-            self._serde,
+        engine.subscriber = cast(
+            Type[Subscriber],
+            partial(
+                SubscriberEngine,
+                strategy=SqlAlchemySubscriptionStrategy(),
+                serde=self._serde,
+            ),
         )
         engine.serde = self._serde
         return engine

@@ -1,5 +1,5 @@
 import abc
-from typing import ContextManager, Iterator
+from typing import ContextManager, Iterator, Type
 
 from typing_extensions import Self
 
@@ -26,7 +26,7 @@ class Engine:
     serde: Serde
     event_store: EventStore
     outbox: Outbox
-    subscriber: Subscriber
+    subscriber: Type[Subscriber]
 
 
 class EventStoreFactory(abc.ABC):
