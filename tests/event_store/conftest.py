@@ -124,4 +124,4 @@ def event_store_factory(request: SubRequest) -> EventStoreFactory:
 
 @pytest.fixture()
 def event_store(event_store_factory: EventStoreFactory) -> EventStore:
-    return event_store_factory.build()
+    return event_store_factory.build().event_store

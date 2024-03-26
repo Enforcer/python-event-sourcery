@@ -25,9 +25,11 @@ def test_can_work_with_custom_events_with_custom_registry(
     class SomeDummyEvent(BaseModel):
         name: ClassVar[str] = "SomeDummyEvent"
 
-    event_store = event_store_factory.with_event_registry(
-        event_registry=registry
-    ).build()
+    event_store = (
+        event_store_factory.with_event_registry(event_registry=registry)
+        .build()
+        .event_store
+    )
 
     stream_id = StreamId(uuid4())
     event_store.append(

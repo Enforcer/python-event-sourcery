@@ -1,6 +1,5 @@
 from dataclasses import dataclass
-from datetime import timedelta
-from typing import Iterator, Sequence, Union, cast
+from typing import Sequence, Union, cast
 
 from more_itertools import first_true
 from sqlalchemy import delete, select, update
@@ -12,7 +11,6 @@ from event_sourcery.event_store import (
     NO_VERSIONING,
     Position,
     RawEvent,
-    RecordedRaw,
     StreamId,
     Versioning,
 )
@@ -24,11 +22,13 @@ from event_sourcery.event_store.interfaces import StorageStrategy
 from event_sourcery_sqlalchemy.models import Event as EventModel
 from event_sourcery_sqlalchemy.models import Snapshot as SnapshotModel
 from event_sourcery_sqlalchemy.models import Stream as StreamModel
+from event_sourcery_sqlalchemy.outbox import SqlAlchemyOutboxStorageStrategy
 
 
 @dataclass(repr=False)
 class SqlAlchemyStorageStrategy(StorageStrategy):
     _session: Session
+    _outbox: SqlAlchemyOutboxStorageStrategy | None = None
 
     def fetch_events(
         self,
@@ -178,6 +178,8 @@ class SqlAlchemyStorageStrategy(StorageStrategy):
                 version=event.version,
             )
             stream.events.append(entry)
+        if self._outbox:
+            self._outbox.put_into_outbox(events)
         self._session.flush()
 
     def save_snapshot(self, snapshot: RawEvent) -> None:
@@ -206,40 +208,6 @@ class SqlAlchemyStorageStrategy(StorageStrategy):
             StreamModel.stream_id == stream_id,
         )
         self._session.execute(delete_stream_stmt)
-
-    def subscribe(
-        self,
-        from_position: Position | None,
-        to_category: str | None,
-        to_events: list[str] | None,
-    ) -> Iterator[RecordedRaw]:
-        raise NotImplementedError
-
-    def subscribe_to_all(
-        self,
-        start_from: Position,
-        batch_size: int,
-        timelimit: timedelta,
-    ) -> Iterator[list[RecordedRaw]]:
-        raise NotImplementedError
-
-    def subscribe_to_category(
-        self,
-        start_from: Position,
-        batch_size: int,
-        timelimit: timedelta,
-        category: str,
-    ) -> Iterator[list[RecordedRaw]]:
-        raise NotImplementedError
-
-    def subscribe_to_events(
-        self,
-        start_from: Position,
-        batch_size: int,
-        timelimit: timedelta,
-        events: list[str],
-    ) -> Iterator[list[RecordedRaw]]:
-        raise NotImplementedError
 
     @property
     def current_position(self) -> Position | None:

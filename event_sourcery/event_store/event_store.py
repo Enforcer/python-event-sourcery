@@ -2,9 +2,14 @@ from functools import singledispatchmethod
 from typing import Callable, Sequence, cast
 
 from event_sourcery.event_store.event import Event, Metadata, Position, RawEvent, Serde
-from event_sourcery.event_store.interfaces import OutboxStorageStrategy, StorageStrategy
+from event_sourcery.event_store.interfaces import (
+    OutboxStorageStrategy,
+    StorageStrategy,
+    SubscriptionStrategy,
+)
+from event_sourcery.event_store.outbox import Outbox
 from event_sourcery.event_store.stream_id import StreamId
-from event_sourcery.event_store.subscription import Subscriber
+from event_sourcery.event_store.subscription import Subscriber, SubscriberEngine
 from event_sourcery.event_store.versioning import (
     NO_VERSIONING,
     ExplicitVersioning,
@@ -17,10 +22,12 @@ class EventStore:
         self,
         storage_strategy: StorageStrategy,
         outbox_storage_strategy: OutboxStorageStrategy,
+        subscription_strategy: SubscriptionStrategy,
         serde: Serde,
     ) -> None:
         self._storage_strategy = storage_strategy
-        self._outbox_storage_strategy = outbox_storage_strategy
+        self._outbox = Outbox(outbox_storage_strategy, serde)
+        self._subscription_strategy = subscription_strategy
         self._serde = serde
 
     def run_outbox(
@@ -28,11 +35,7 @@ class EventStore:
         publisher: Callable[[Metadata, StreamId], None],
         limit: int = 100,
     ) -> None:
-        stream = self._outbox_storage_strategy.outbox_entries(limit=limit)
-        for entry in stream:
-            with entry as raw_event_dict:
-                event = self._serde.deserialize(raw_event_dict)
-                publisher(event, raw_event_dict.stream_id)
+        self._outbox.run_outbox(publisher, limit)
 
     def load_stream(
         self,
@@ -96,19 +99,18 @@ class EventStore:
         stream_id: StreamId,
         expected_version: int | Versioning = 0,
     ) -> None:
-        serialized_events = self._append(
+        self._append(
             stream_id=stream_id,
             events=(first,) + events,
             expected_version=expected_version,
         )
-        self._outbox_storage_strategy.put_into_outbox(serialized_events)
 
     def _append(
         self,
         stream_id: StreamId,
         events: Sequence[Metadata],
         expected_version: int | Versioning,
-    ) -> list[RawEvent]:
+    ) -> None:
         new_version = events[-1].version
         versioning: Versioning
         if expected_version is not NO_VERSIONING:
@@ -119,11 +121,11 @@ class EventStore:
         else:
             versioning = NO_VERSIONING
 
-        serialized_events = self._serialize_events(events, stream_id)
         self._storage_strategy.insert_events(
-            stream_id=stream_id, versioning=versioning, events=serialized_events
+            stream_id=stream_id,
+            versioning=versioning,
+            events=self._serialize_events(events, stream_id),
         )
-        return serialized_events
 
     def delete_stream(self, stream_id: StreamId) -> None:
         self._storage_strategy.delete_stream(stream_id)
@@ -143,7 +145,7 @@ class EventStore:
         return [self._serde.serialize(event=e, stream_id=stream_id) for e in events]
 
     def subscriber(self, from_position: Position) -> Subscriber:
-        return Subscriber(from_position, self._storage_strategy, self._serde)
+        return SubscriberEngine(self._subscription_strategy, self._serde, from_position)
 
     @property
     def position(self) -> Position | None:

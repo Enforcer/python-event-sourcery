@@ -14,38 +14,11 @@ class OutboxFiltererStrategy(Protocol):
 
 class OutboxStorageStrategy(abc.ABC):
     @abc.abstractmethod
-    def put_into_outbox(self, events: list[RawEvent]) -> None:
-        pass
-
-    @abc.abstractmethod
     def outbox_entries(self, limit: int) -> Iterator[ContextManager[RawEvent]]:
         pass
 
 
-class StorageStrategy(abc.ABC):
-    @abc.abstractmethod
-    def fetch_events(
-        self,
-        stream_id: StreamId,
-        start: int | None = None,
-        stop: int | None = None,
-    ) -> list[RawEvent]:
-        pass
-
-    @abc.abstractmethod
-    def insert_events(
-        self, stream_id: StreamId, versioning: Versioning, events: list[RawEvent]
-    ) -> None:
-        pass
-
-    @abc.abstractmethod
-    def save_snapshot(self, snapshot: RawEvent) -> None:
-        pass
-
-    @abc.abstractmethod
-    def delete_stream(self, stream_id: StreamId) -> None:
-        pass
-
+class SubscriptionStrategy(abc.ABC):
     @abc.abstractmethod
     def subscribe_to_all(
         self,
@@ -73,6 +46,31 @@ class StorageStrategy(abc.ABC):
         timelimit: timedelta,
         events: list[str],
     ) -> Iterator[list[RecordedRaw]]:
+        pass
+
+
+class StorageStrategy(abc.ABC):
+    @abc.abstractmethod
+    def fetch_events(
+        self,
+        stream_id: StreamId,
+        start: int | None = None,
+        stop: int | None = None,
+    ) -> list[RawEvent]:
+        pass
+
+    @abc.abstractmethod
+    def insert_events(
+        self, stream_id: StreamId, versioning: Versioning, events: list[RawEvent]
+    ) -> None:
+        pass
+
+    @abc.abstractmethod
+    def save_snapshot(self, snapshot: RawEvent) -> None:
+        pass
+
+    @abc.abstractmethod
+    def delete_stream(self, stream_id: StreamId) -> None:
         pass
 
     @property

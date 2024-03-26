@@ -7,7 +7,8 @@ from tests.factories import an_event
 
 @pytest.fixture()
 def event_store(event_store_factory: EventStoreFactory) -> EventStore:
-    return event_store_factory.without_outbox().build()
+    engine = event_store_factory.without_outbox().build()
+    return engine.event_store
 
 
 def test_nothing_when_using_outbox_on_eventstore_without_outbox(

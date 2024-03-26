@@ -18,7 +18,8 @@ def event_store(
     filter_everything: OutboxFiltererStrategy,
     event_store_factory: EventStoreFactory,
 ) -> EventStore:
-    return event_store_factory.with_outbox(filterer=filter_everything).build()
+    engine = event_store_factory.with_outbox(filterer=filter_everything).build()
+    return engine.event_store
 
 
 def test_no_entries_when_everything_was_filtered(

@@ -53,9 +53,6 @@ class ESDBOutboxStorageStrategy(OutboxStorageStrategy):
         assert self._active_subscription is not None
         return self._active_subscription
 
-    def put_into_outbox(self, events: list[RawEvent]) -> None:
-        ...
-
     def outbox_entries(self, limit: int) -> Iterator[ContextManager[RawEvent]]:
         info = self._client.get_subscription_info(self.OUTBOX_NAME)
         if info.live_buffer_count == 0:
