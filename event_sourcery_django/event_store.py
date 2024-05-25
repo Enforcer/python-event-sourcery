@@ -1,7 +1,7 @@
 from dataclasses import dataclass
-from typing import Sequence, cast
+from typing import Sequence
 
-from more_itertools import first, first_true
+from more_itertools import first_true
 
 from event_sourcery.event_store import (
     NO_VERSIONING,
@@ -10,6 +10,7 @@ from event_sourcery.event_store import (
     StreamId,
     Versioning,
 )
+from event_sourcery.event_store.context import Context
 from event_sourcery.event_store.exceptions import (
     AnotherStreamWithThisNameButOtherIdExists,
     ConcurrentStreamWriteError,
@@ -26,11 +27,14 @@ class DjangoStorageStrategy(StorageStrategy):
     def fetch_events(
         self,
         stream_id: StreamId,
+        context: Context,
         start: int | None = None,
         stop: int | None = None,
     ) -> list[RawEvent]:
         try:
-            stream = models.Stream.objects.by_stream_id(stream_id=stream_id).get()
+            stream = models.Stream.objects.by_stream_id(
+                stream_id=stream_id, tenant_id=context.tenant_id
+            ).get()
         except models.Stream.DoesNotExist:
             return []
 
@@ -67,18 +71,23 @@ class DjangoStorageStrategy(StorageStrategy):
         stream_id: StreamId,
         versioning: Versioning,
         events: list[RawEvent],
+        context: Context,
     ) -> None:
-        self._ensure_stream(stream_id=stream_id, versioning=versioning)
-        event = cast(RawEvent, first(events))
-        stream = models.Stream.objects.by_stream_id(stream_id=event.stream_id).get()
+        stream = self._ensure_stream(
+            stream_id=stream_id, versioning=versioning, context=context
+        )
         models.Event.objects.bulk_create(dto.entry(event, stream) for event in events)
         if self._outbox:
             self._outbox.put_into_outbox(events)
 
-    def _ensure_stream(self, stream_id: StreamId, versioning: Versioning) -> None:
+    def _ensure_stream(
+        self, stream_id: StreamId, versioning: Versioning, context: Context
+    ) -> models.Stream:
         initial_version = versioning.initial_version
 
-        matching_streams = models.Stream.objects.by_stream_id(stream_id=stream_id).all()
+        matching_streams = models.Stream.objects.by_stream_id(
+            stream_id=stream_id, tenant_id=context.tenant_id
+        ).all()
         if stream_id.name and matching_streams:
             stream_with_same_name = first_true(
                 matching_streams, pred=lambda stream: stream.name == stream_id.name
@@ -89,11 +98,12 @@ class DjangoStorageStrategy(StorageStrategy):
             ):
                 raise AnotherStreamWithThisNameButOtherIdExists()
 
-        model, created = models.Stream.objects.get_or_create(
+        model: models.Stream
+        model, _created = models.Stream.objects.get_or_create(
             uuid=stream_id,
             name=stream_id.name,
             category=stream_id.category or "",
-            defaults={"version": initial_version},
+            defaults={"version": initial_version, "tenant_id": context.tenant_id},
         )
 
         versioning.validate_if_compatible(model.version)
@@ -104,6 +114,8 @@ class DjangoStorageStrategy(StorageStrategy):
             ).update(version=versioning.initial_version)
             if result != 1:
                 raise ConcurrentStreamWriteError
+
+        return model
 
     def save_snapshot(self, snapshot: RawEvent) -> None:
         stream = models.Stream.objects.by_stream_id(stream_id=snapshot.stream_id).get()

@@ -1,6 +1,7 @@
 from functools import singledispatchmethod
 from typing import Sequence, cast
 
+from event_sourcery.event_store.context import get_context
 from event_sourcery.event_store.event import Event, Metadata, Position, RawEvent, Serde
 from event_sourcery.event_store.interfaces import StorageStrategy
 from event_sourcery.event_store.stream_id import StreamId
@@ -22,7 +23,10 @@ class EventStore:
         start: int | None = None,
         stop: int | None = None,
     ) -> Sequence[Metadata]:
-        events = self._storage_strategy.fetch_events(stream_id, start=start, stop=stop)
+        context = get_context()
+        events = self._storage_strategy.fetch_events(
+            stream_id, start=start, stop=stop, context=context
+        )
         return self._deserialize_events(events)
 
     @singledispatchmethod
@@ -100,10 +104,12 @@ class EventStore:
         else:
             versioning = NO_VERSIONING
 
+        context = get_context()
         self._storage_strategy.insert_events(
             stream_id=stream_id,
             versioning=versioning,
             events=self._serialize_events(events, stream_id),
+            context=context,
         )
 
     def delete_stream(self, stream_id: StreamId) -> None:

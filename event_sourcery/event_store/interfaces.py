@@ -2,6 +2,7 @@ import abc
 from datetime import timedelta
 from typing import ContextManager, Iterator, Protocol
 
+from event_sourcery.event_store.context import Context
 from event_sourcery.event_store.event import Position, RawEvent, RecordedRaw
 from event_sourcery.event_store.stream_id import StreamId
 from event_sourcery.event_store.versioning import Versioning
@@ -54,6 +55,7 @@ class StorageStrategy(abc.ABC):
     def fetch_events(
         self,
         stream_id: StreamId,
+        context: Context,
         start: int | None = None,
         stop: int | None = None,
     ) -> list[RawEvent]:
@@ -61,7 +63,11 @@ class StorageStrategy(abc.ABC):
 
     @abc.abstractmethod
     def insert_events(
-        self, stream_id: StreamId, versioning: Versioning, events: list[RawEvent]
+        self,
+        stream_id: StreamId,
+        versioning: Versioning,
+        events: list[RawEvent],
+        context: Context,
     ) -> None:
         pass
 

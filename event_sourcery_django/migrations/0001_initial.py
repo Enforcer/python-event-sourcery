@@ -33,6 +33,7 @@ class Migration(migrations.Migration):
                 ("name", models.CharField(blank=True, max_length=255, null=True)),
                 ("category", models.CharField(default="", max_length=255)),
                 ("version", models.BigIntegerField(blank=True, null=True)),
+                ("tenant_id", models.BigIntegerField(blank=True, null=True)),
             ],
             options={
                 "unique_together": {("name", "category"), ("uuid", "category")},

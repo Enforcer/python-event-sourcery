@@ -14,6 +14,7 @@ from event_sourcery.event_store import (
     StreamId,
     Versioning,
 )
+from event_sourcery.event_store.context import Context
 from event_sourcery.event_store.exceptions import (
     AnotherStreamWithThisNameButOtherIdExists,
     ConcurrentStreamWriteError,
@@ -33,6 +34,7 @@ class SqlAlchemyStorageStrategy(StorageStrategy):
     def fetch_events(
         self,
         stream_id: StreamId,
+        context: Context,
         start: int | None = None,
         stop: int | None = None,
     ) -> list[RawEvent]:
@@ -156,7 +158,11 @@ class SqlAlchemyStorageStrategy(StorageStrategy):
                 raise ConcurrentStreamWriteError
 
     def insert_events(
-        self, stream_id: StreamId, versioning: Versioning, events: list[RawEvent]
+        self,
+        stream_id: StreamId,
+        versioning: Versioning,
+        events: list[RawEvent],
+        context: Context,
     ) -> None:
         self._ensure_stream(stream_id=stream_id, versioning=versioning)
         stream = cast(

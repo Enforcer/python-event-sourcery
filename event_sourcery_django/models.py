@@ -8,9 +8,13 @@ from event_sourcery.event_store import StreamId
 
 
 class StreamManager(models.Manager):
-    def by_stream_id(self, stream_id: StreamId) -> models.QuerySet:
+    def by_stream_id(
+        self,
+        stream_id: StreamId,
+        tenant_id: int | None = None,  # TODO: tenant_id MUST NOT be optional
+    ) -> models.QuerySet:
         category = stream_id.category or ""
-        condition = models.Q(uuid=stream_id, category=category)
+        condition = models.Q(uuid=stream_id, category=category, tenant_id=tenant_id)
         if stream_id.name:
             condition = condition | models.Q(name=stream_id.name, category=category)
         return self.filter(condition)
@@ -24,6 +28,7 @@ class Stream(models.Model):
     name = models.CharField(max_length=255, null=True, blank=True)
     category = models.CharField(max_length=255, default="")
     version = models.BigIntegerField(null=True, blank=True)
+    tenant_id = models.BigIntegerField(null=True, blank=True)
 
     objects = StreamManager()
 
